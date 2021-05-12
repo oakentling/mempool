@@ -127,12 +127,13 @@ void blocking_queue_push(queue_t *const queue, int32_t *data) {
   __atomic_fetch_add(&(queue->counter), 1, __ATOMIC_SEQ_CST);
 }
 
-void counting_queue_pop(queue_t *const queue, int32_t *data,
-                        uint32_t *counter) {
+void counting_queue_pop(queue_t *const queue, int32_t *data) {
+  // Start counting
+  mempool_start_benchmark();
+  // Fetch head
   uint32_t current_head = queue->head;
   // Wait until not empty
   while (queue->counter == 0) {
-    (*counter)++;
   }
   // Copy data to data pointer
   int32_t *array = queue->buffer + current_head;
@@ -143,14 +144,17 @@ void counting_queue_pop(queue_t *const queue, int32_t *data,
   queue->head = (current_head + DATA_SIZE) % (QUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_sub(&(queue->counter), 1, __ATOMIC_SEQ_CST);
+  // Stop counting
+  mempool_stop_benchmark();
 }
 
-void counting_queue_push(queue_t *const queue, int32_t *data,
-                         uint32_t *counter) {
+void counting_queue_push(queue_t *const queue, int32_t *data) {
+  // Start counting
+  mempool_start_benchmark();
+  // Fetch tail
   uint32_t current_tail = queue->tail;
   // Wait until not full
   while (queue->counter == QUEUE_SIZE) {
-    (*counter)++;
   }
   // Copy data from data pointer
   int32_t *array = queue->buffer + current_tail;
@@ -161,4 +165,6 @@ void counting_queue_push(queue_t *const queue, int32_t *data,
   queue->tail = (current_tail + DATA_SIZE) % (QUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_add(&(queue->counter), 1, __ATOMIC_SEQ_CST);
+  // Stop counting
+  mempool_stop_benchmark();
 }
