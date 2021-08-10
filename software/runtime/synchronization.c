@@ -36,4 +36,3 @@ void mempool_barrier(uint32_t num_cores) {
   // Clear the wake-up trigger for the last core reaching the barrier as well
   mempool_wfi();
 }
-
