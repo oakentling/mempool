@@ -35,7 +35,7 @@ l2_banks ?= 4
 
 # Size of sequential memory per core (in bytes)
 # (must be a power of two)
-seq_mem_size ?= 2048
+seq_mem_size ?= 1024
 
 # Size of stack in sequential memory per core (in bytes)
 # (must not be larger than the sequential memory - queue)
@@ -47,7 +47,7 @@ stack_size ?= 1024
 
 # Size of queue in each memory bank (in words)
 # (assume banking factor of 4)
-queue_size ?= 4
+queue_size ?= 0
 
 ################################
 ##  Optional functionalities  ##
