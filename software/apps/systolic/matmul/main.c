@@ -15,9 +15,9 @@
 #include "systolic/matmul.h"
 
 // Dimensions of matrices
-#define DIM_M 64
-#define DIM_N 64
-#define DIM_P 64
+#define DIM_M 24
+#define DIM_N 24
+#define DIM_P 24
 
 uint32_t *grid_mapping;
 
@@ -68,15 +68,13 @@ int main() {
     grid_mapping = (uint32_t *)simple_malloc(num_cores * 4);
   }
 
-  // 16 CORES
-
   // Assign grid position (row wise)
-  // uint32_t col_idx = core_id % 4;
-  // uint32_t row_idx = core_id / 4;
+  // uint32_t col_idx = core_id % SYSTOLIC_SIZE;
+  // uint32_t row_idx = core_id / SYSTOLIC_SIZE;
 
   // Assign grid position (col wise)
-  // uint32_t col_idx = core_id / 4;
-  // uint32_t row_idx = core_id % 4;
+  uint32_t col_idx = core_id / SYSTOLIC_SIZE;
+  uint32_t row_idx = core_id % SYSTOLIC_SIZE;
 
   // Assign grid position (tile wise)
   // uint32_t col_idx;
@@ -95,20 +93,6 @@ int main() {
   //   row_idx = core_id / 14 + 2;
   // }
 
-  // uint32_t mapped_tile = tile_id;
-
-  // 256 CORES
-
-  // Assign grid position (col wise)
-  uint32_t col_idx = core_id / 16;
-  uint32_t row_idx = core_id % 16;
-
-  // Assign grid position (col wise)
-  // uint32_t mapped_group = core_id % 4;
-  // uint32_t col_idx = tile_id / 4;
-  // uint32_t row_idx = (tile_id % 4) + (mapped_group * 4);
-  // uint32_t mapped_tile = (tile_id % 16) + (mapped_group * 16);
-
   // Wait for all cores
   mempool_barrier(num_cores);
 
@@ -121,9 +105,6 @@ int main() {
   // Setup
   if (core_id == 0) {
     printf("> Initialize\n");
-
-    // Print out grid mapping
-    // print_matrix((int32_t *)grid_mapping, 16, 16);
 
     // Initialize systolic array
     systolic_init(grid_mapping);
@@ -155,10 +136,6 @@ int main() {
     mempool_start_benchmark();
   }
 
-  if (core_id == 255) {
-    mempool_start_benchmark();
-  }
-
   // Wait for all cores
   mempool_barrier(num_cores);
 
@@ -174,13 +151,8 @@ int main() {
     systolic_rp_pe(row_idx, rep_count, syst_matrix_A, syst_matrix_C);
   }
 
-  // TODO: REMOVE LAST OPTION AGAIN (AND EXTRA BENCHMARK OF 255)
   if ((row_idx != 0) && (col_idx != 0)) {
-    if ((row_idx == 15) && (col_idx == 15)) {
-      systolic_last_pe(row_idx, col_idx, rep_count, syst_matrix_C);
-    } else {
-      systolic_np_pe(row_idx, col_idx, rep_count, syst_matrix_C);
-    }
+    systolic_np_pe(row_idx, col_idx, rep_count, syst_matrix_C);
   }
 
   // Wait for all cores
@@ -197,11 +169,7 @@ int main() {
     // systolic_matrix_print(syst_matrix_C);
 
     // Print out benchmark results
-    // systolic_benchmark_print();
-  }
-
-  if (core_id == 255) {
-    mempool_stop_benchmark();
+    systolic_benchmark_print();
   }
 
   // wait until all cores have finished
