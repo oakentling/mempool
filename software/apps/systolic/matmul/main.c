@@ -15,9 +15,9 @@
 #include "systolic/matmul.h"
 
 // Dimensions of matrices
-#define DIM_M 24
-#define DIM_N 24
-#define DIM_P 24
+#define DIM_M 32
+#define DIM_N 32
+#define DIM_P 32
 
 uint32_t *grid_mapping;
 
@@ -66,6 +66,10 @@ int main() {
   // Allocate systolic grid mapping
   if (core_id == 0) {
     grid_mapping = (uint32_t *)simple_malloc(num_cores * 4);
+    if (num_cores != SYSTOLIC_SIZE * SYSTOLIC_SIZE) {
+      printf("SYSTOLIC_SIZE does not match core count!\n");
+      return -1;
+    }
   }
 
   // Assign grid position (row wise)
@@ -76,6 +80,7 @@ int main() {
   uint32_t col_idx = core_id / SYSTOLIC_SIZE;
   uint32_t row_idx = core_id % SYSTOLIC_SIZE;
 
+  // 16 CORES only
   // Assign grid position (tile wise)
   // uint32_t col_idx;
   // uint32_t row_idx;
@@ -105,6 +110,9 @@ int main() {
   // Setup
   if (core_id == 0) {
     printf("> Initialize\n");
+
+    // Print out grid mapping
+    // print_matrix((int32_t *)grid_mapping, 16, 16);
 
     // Initialize systolic array
     systolic_init(grid_mapping);
@@ -169,7 +177,7 @@ int main() {
     // systolic_matrix_print(syst_matrix_C);
 
     // Print out benchmark results
-    systolic_benchmark_print();
+    // systolic_benchmark_print();
   }
 
   // wait until all cores have finished
