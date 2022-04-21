@@ -112,8 +112,17 @@ jobs:
   ###########
   riscv-isa-sim:
     runs-on: ubuntu-latest
+    needs: riscv-opcodes
     steps:
     - uses: actions/checkout@v2
+    - name: Get riscv-opcodes artifacts
+      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Cache riscv-isa-sim
       uses: actions/cache@v2
       id: riscv-isa-sim
@@ -167,18 +176,45 @@ jobs:
         name: verilator
         path: verilator.tzst
 
+  riscv-opcodes:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Download riscv-opcodes
+      if: steps.riscv-opcodes.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive -- toolchain/riscv-opcodes
+    - name: Regenerate opcodes
+      if: steps.riscv-opcodes.outputs.cache-hit != 'true'
+      run: |
+        make update_opcodes
+        git diff --exit-code
+    - name: Tar riscv-opcodes
+      run: tar --posix --use-compress-program zstd -cf riscv-opcodes.tzst toolchain/riscv-opcodes software/runtime/encoding.h hardware/deps/snitch/src/riscv_instr.sv
+    - name: Upload riscv-opcodes
+      uses: actions/upload-artifact@v2
+      with:
+        name: riscv-opcodes
+        path: riscv-opcodes.tzst
+
+
   ####################
   #  Build Hardware  #
   ####################
   verilator-model:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: verilator
+    needs: [verilator, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Cache Verilator Model
       uses: actions/cache@v2
       id: verilator-model
@@ -234,22 +270,13 @@ jobs:
         make -C hardware src/bootrom.sv
         git diff --exit-code
 
-  check-opcodes:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Regenerate opcodes
-      run: |
-        rm toolchain/riscv-opcodes/encoding_out.h
-        make update_opcodes
-        git diff --exit-code
 
   ####################
   #  Build Software  #
   ####################
   build-apps-gcc:
     runs-on: ubuntu-latest
-    needs: tc-gcc
+    needs: [tc-gcc, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -261,6 +288,12 @@ jobs:
         name: riscv-gnu-toolchain
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -277,7 +310,7 @@ jobs:
 
   build-apps-llvm:
     runs-on: ubuntu-latest
-    needs: [tc-gcc, tc-llvm]
+    needs: [tc-gcc, tc-llvm, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -295,6 +328,12 @@ jobs:
         name: llvm-project
     - name: Untar llvm-project
       run: tar --use-compress-program zstd -xf llvm-project.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -311,7 +350,7 @@ jobs:
 
   build-apps-halide:
     runs-on: ubuntu-latest
-    needs: [tc-gcc, tc-llvm, tc-halide]
+    needs: [tc-gcc, tc-llvm, tc-halide, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -335,6 +374,12 @@ jobs:
         name: halide
     - name: Untar halide
       run: tar --use-compress-program zstd -xf halide.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -355,7 +400,7 @@ jobs:
   run-apps-gcc:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
+    needs: [build-apps-gcc, riscv-isa-sim, verilator-model, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -379,6 +424,12 @@ jobs:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run GCC Apps
@@ -396,7 +447,7 @@ jobs:
   run-apps-llvm:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
+    needs: [build-apps-llvm, riscv-isa-sim, verilator-model, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -420,6 +471,12 @@ jobs:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run LLVM Apps
@@ -437,7 +494,7 @@ jobs:
   run-apps-halide:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [build-apps-halide, riscv-isa-sim, verilator-model]
+    needs: [build-apps-halide, riscv-isa-sim, verilator-model, riscv-opcodes]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -461,6 +518,12 @@ jobs:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run Halide Apps
@@ -478,7 +541,7 @@ jobs:
   unit-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [tc-gcc, riscv-isa-sim, verilator-model]
+    needs: [tc-gcc, riscv-isa-sim, verilator-model, riscv-opcodes]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -499,6 +562,12 @@ jobs:
         name: verilator-model-minpool
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get riscv-opcodes artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-opcodes
+    - name: Untar riscv-opcodes
+      run: tar --use-compress-program zstd -xf riscv-opcodes.tzst
     - name: Execute tests
       run: |
         # Don't regenerate previously build artifacts
@@ -514,7 +583,7 @@ jobs:
   clean-up:
     runs-on: ubuntu-latest
     if: always()
-    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+    needs: [tc-gcc, tc-llvm, riscv-isa-sim, riscv-opcodes, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
       run-apps-llvm, run-apps-halide]
     steps:
@@ -527,11 +596,12 @@ jobs:
           halide
           riscv-isa-sim
           verilator
+          riscv-opcodes
 
   clean-up-compile-runs:
     runs-on: ubuntu-latest
     if: always()
-    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+    needs: [tc-gcc, tc-llvm, riscv-isa-sim, riscv-opcodes, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
       run-apps-llvm, run-apps-halide]
     strategy:
