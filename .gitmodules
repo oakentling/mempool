@@ -31,3 +31,7 @@
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
 	url = https://github.com/pulp-platform/riscv-opcodes.git
+[submodule "software/riscv-tests"]
+	path = software/riscv-tests
+	url = https://github.com/oakentling/riscv-tests.git
+	branch = revision
