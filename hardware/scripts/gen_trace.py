@@ -528,6 +528,8 @@ def annotate_insn(
     time_info_strs = tuple((str(elem) if show_time_info else '')
                            for elem in time_info)
     # Annotated trace
+    if extras_str == "}":
+        extras_str = ""
     if extras_str:
         extras = read_annotations(extras_str)
         # Annotate snitch

@@ -31,7 +31,7 @@ SECTIONS {
     *(.text.startup)
     *(.text)
     *(.text.end)
-    . = ALIGN(0x40);
+    //. = ALIGN(0x40);
     _etext = .;
   } > l2
 
