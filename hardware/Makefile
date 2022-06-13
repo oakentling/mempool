@@ -268,7 +268,7 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 ################
 # Tracing      #
 ################
-benchmark: log simc
+benchmark: log simcvcs
 	# Call `make` again to get variable extension with all traces
 	result_dir=$(result_dir) $(MAKE) trace
 
@@ -294,7 +294,7 @@ post_trace:
 	cp $(buildpath)/transcript "$(result_dir)/" | true
 	cp $(traceresult) "$(result_dir)"
 	cp $(trace) "$(result_dir)"
-	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)"
+	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(buildpath)/average
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)

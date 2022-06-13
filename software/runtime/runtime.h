@@ -66,6 +66,7 @@ static inline void mempool_stop_benchmark() {
 
 /// Obtain a monotonically increasing cycle count.
 static inline mempool_timer_t mempool_get_timer() { return read_csr(mcycle); }
+static inline mempool_timer_t mempool_get_instret() { return read_csr(minstret); }
 
 /// Busy loop for waiting
 static inline void mempool_wait(uint32_t cycles) {
